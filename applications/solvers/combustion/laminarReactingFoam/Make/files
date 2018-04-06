@@ -1,0 +1,3 @@
+laminarReactingFoam.C
+
+EXE = $(FOAM_USER_APPBIN)/laminarReactingFoam
