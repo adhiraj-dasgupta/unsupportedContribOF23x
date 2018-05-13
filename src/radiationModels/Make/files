@@ -1,0 +1,3 @@
+opticallyThin/opticallyThin.C
+
+LIB = $(FOAM_USER_LIBBIN)/libopticallyThin
