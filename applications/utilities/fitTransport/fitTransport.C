@@ -2,7 +2,7 @@
  =========                 |
  \\      /  F ield         | Code based on OpenFOAM
   \\    /   O peration     |
-   \\  /    A nd           | Copyright (C) 2017 Adhiraj Dasgupta
+   \\  /    A nd           | Copyright (C) Adhiraj Dasgupta
     \\/     M anipulation  |                     
 -------------------------------------------------------------------------------
  License
