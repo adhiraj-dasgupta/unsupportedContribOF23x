@@ -2,7 +2,7 @@
  =========                 |
  \\      /  F ield         | Code based on OpenFOAM
   \\    /   O peration     |
-   \\  /    A nd           | Copyright (C) Adhiraj Dasgupta
+   \\  /    A nd           | Copyright (C) 2017 Adhiraj Dasgupta
     \\/     M anipulation  |                     
 -------------------------------------------------------------------------------
  License
@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
     double chisqVisc, chisqCond, chisqDiff, chisqTherm;
     double rcond;
     X = gsl_matrix_alloc(step, 4);
-    cov = gsl_matrix_alloc(step, 4);
+    cov = gsl_matrix_alloc(4, 4);
     
     y = gsl_vector_alloc(step);
     z = gsl_vector_alloc(step);
