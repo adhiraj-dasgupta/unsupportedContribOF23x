@@ -1,0 +1,3 @@
+chemistrySolver/customChemistrySolvers.C
+
+LIB = $(FOAM_USER_LIBBIN)/libCustomChemistryModel
