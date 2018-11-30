@@ -82,66 +82,6 @@ void Foam::QSS<ChemistryModel>::solve
     p = cTp_[nSpecie+1];
 }
 
-
-template<class ChemistryModel>
-void Foam::QSS<ChemistryModel>::derivatives
-(
-    const scalar time,
-    const scalarField &c,
-    scalarField& dcdt
-) const
-{
-
-    label nSpecie = this->nSpecie();
-    double T = c[nSpecie];
-    const scalar p = c[nSpecie + 1];
-    //Convert Pa to dynes/cm2
-    double pa = p*10.0;
-
-    // constant pressure
-    // dT/dt = ...
-    scalar rho = 0.0;
-    scalar cSum = 0.0;
-    for (label i = 0; i < nSpecie; i++)
-    {
-        const scalar W = this->specieThermo_[i].W();
-        cSum += c[i];
-        rho += W*c[i];
-    }
-    
-    // Calculate the mass fractions since the routine needs Y
-    for (label i = 0; i < nSpecie; i++)
-    {
-        const scalar W = this->specieThermo_[i].W();
-        Ytmp0[i] = c[i]*W/rho;        
-    }    
-    ckwyp_(&pa, &T, Ytmp0, NULL, NULL, dYdt);
-    for (label i = 0; i < nSpecie; i++)
-    {
-        dcdt[i] = dYdt[i]*1e3;
-    }
-        
-    scalar cp = 0.0;
-    for (label i=0; i<nSpecie; i++)
-    {
-        cp += c[i]*(this->specieThermo_[i].cp(p, T));
-    }
-    cp /= rho;
-
-    scalar dT = 0.0;
-    for (label i = 0; i < nSpecie; i++)
-    {
-        const scalar hi = this->specieThermo_[i].ha(p, T);
-        dT += hi*dcdt[i];
-    }
-    dT /= rho*cp;
-
-    dcdt[nSpecie] = -dT;
-
-    // dp/dt = ...
-    dcdt[nSpecie + 1] = 0.0;    
-}
-
 template<class ChemistryModel>
 void Foam::QSS<ChemistryModel>::jacobian
 (
@@ -160,12 +100,12 @@ void Foam::QSS<ChemistryModel>::jacobian
     const scalar uround = 2.220446049250313E-016;
     scalarField c3 = c;
     scalarField dcdtH(nEqns, 0.0);
-    derivatives(t, c, dcdt);
+    this->derivatives(t, c, dcdt);
     for (label i = 0; i < nEqns; i++)
     {
         scalar delt = sqrt(uround*max(1.0e-5,mag(c[i])));
         c3[i] = c[i] + delt;
-        derivatives(t, c3, dcdtH);
+        this->derivatives(t, c3, dcdtH);
         for (label j = 0; j < nEqns; j++)
         {   
             dfdc[j][i] = (dcdtH[j] - dcdt[j])/delt;
@@ -183,15 +123,36 @@ Foam::tmp<Foam::scalarField> Foam::QSS<ChemistryModel>::omega
     const scalar p
 ) const
 {
-    notImplemented
-    (
-        "QSS::omega"
-        "("
-            "const scalarField&, "
-            "const scalar, "
-            "const scalar"
-        ") const"
-    );  
+    tmp<scalarField> tom(new scalarField(this->nEqns(), 0.0));
+    scalarField& om = tom();
+    
+    label nSpecie = this->nSpecie();
+    //Convert Pa to dynes/cm2
+    double pa = p*10.0;
+    double Ti = T;
+    scalar rho = 0.0;
+    scalar cSum = 0.0;
+    for (label i = 0; i < nSpecie; i++)
+    {
+        const scalar W = this->specieThermo_[i].W();
+        cSum += c[i];
+        rho += W*c[i];
+    }    
+    // Calculate the mass fractions since the routine needs Y
+    for (label i = 0; i < nSpecie; i++)
+    {
+        const scalar W = this->specieThermo_[i].W();
+        Ytmp0[i] = c[i]*W/rho;        
+    }    
+    ckwyp_(&pa, &Ti, Ytmp0, NULL, NULL, dYdt);
+    for (label i = 0; i < nSpecie; i++)
+    {
+        //-The output from the external routine has to be converted from
+        // mol/cm3/s to kmol/m3/s
+        om[i] = dYdt[i]*1e3;
+    }
+    
+    return tom;
 }
 
 template<class ChemistryModel>
@@ -282,21 +243,29 @@ Foam::QSS<ChemistryModel>::calculateRR
 template<class ChemistryModel>
 Foam::tmp<Foam::volScalarField> Foam::QSS<ChemistryModel>::tc() const
 {
-    notImplemented
+    tmp<volScalarField> ttc
     (
-        "QSS::tc() const"
+        new volScalarField
+        (
+            IOobject
+            (
+                "tc",
+                this->time().timeName(),
+                this->mesh(),
+                IOobject::NO_READ,
+                IOobject::NO_WRITE
+            ),
+            this->mesh(),
+            dimensionedScalar("zero", dimTime, SMALL),
+            zeroGradientFvPatchScalarField::typeName
+        )
     );
-}
 
-template<class ChemistryModel>
-void Foam::QSS<ChemistryModel>::calculate()
-{
-    if (!this->chemistry_)
-    {
-        return;
-    }
-    
+    scalarField& tc = ttc();    
     label nSpecie = this->nSpecie();
+    scalarField c(nSpecie);
+    scalarField dcdt(nSpecie);
+    scalarField tScale(nSpecie);
     const volScalarField rho
     (
         IOobject
@@ -314,30 +283,34 @@ void Foam::QSS<ChemistryModel>::calculate()
     const scalarField& T = this->thermo().T();
     const scalarField& p = this->thermo().p();
 
-    forAll(rho, celli)
+    if (this->chemistry_)
     {
-        const scalar rhoi = rho[celli];
-        double Ti = T[celli];
-        const scalar pi = p[celli];
-        //- Convert Pa to dynes/cm2
-        scalar pa = pi*10.0;
+        forAll(rho, celli)
+        {
+            const scalar rhoi = rho[celli];
+            double Ti = T[celli];
+            scalar pi = p[celli];
+            
+            for (label i=0; i<nSpecie; i++)
+            {
+                Ytmp0[i] = this->Y_[i][celli];
+                c[i] = rhoi*Ytmp0[i]/this->specieThermo_[i].W();
+            }
+            
+            dcdt = omega(c, Ti, pi);
+            
+            for (label i = 0; i < nSpecie; i++)
+            {
+                tScale[i] = c[i]/(mag(dcdt[i]) + SMALL);
+            }
+            tc[celli] = max(tScale);
+        }        
+    }
 
-        scalarField c(nSpecie, 0.0);
-        for (label i=0; i<nSpecie; i++)
-        {
-            Ytmp0[i] = this->Y_[i][celli];           
-        }
 
-        ckwyp_(&pa, &Ti, Ytmp0, NULL, NULL, dYdt);
-        scalarField dcdt(nSpecie);
-        for (label i = 0; i < nSpecie; i++)
-        {
-            dcdt[i] = dYdt[i]*1e3;
-        }
-        for (label i=0; i<nSpecie; i++)
-        {
-            this->RR_[i][celli] = dcdt[i]*this->specieThermo_[i].W();
-        }
-    }    
+    ttc().correctBoundaryConditions();
+
+    return ttc;    
 }
+
 // ************************************************************************* //

@@ -105,15 +105,6 @@ public:
             scalar& subDeltaT
         ) const;
 
-
-
-        void derivatives
-        (
-            const scalar t,
-            const scalarField& c,
-            scalarField& dcdt
-        ) const;
-
         void jacobian
         (
             const scalar t,
@@ -165,9 +156,6 @@ public:
         ) const;
         
         virtual tmp<volScalarField> tc() const;
-        
-        //- Calculates the reaction rates
-        virtual void calculate();
 };
 
 
