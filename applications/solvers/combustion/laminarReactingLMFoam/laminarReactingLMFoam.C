@@ -22,8 +22,9 @@ Application
     laminarReactingLMFoam
 
 Description
-    Solver for combustion with chemical reactions. This solver uses the laminar transport model,
-    and a low-Mach number approximation. Hat tip to the reactingLMFoam solver of Karl J Nogenmyr.
+    Solver for combustion with chemical reactions. This solver uses the laminar
+    transport model, and a low-Mach number approximation. Hat tip to the 
+    reactingLMFoam solver of Karl J Nogenmyr.
 
 \*---------------------------------------------------------------------------*/
 
