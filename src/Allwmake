@@ -1,0 +1,10 @@
+#!/bin/sh
+cd ${0%/*} || exit 1    # run from this directory
+set -x
+
+wmake $maketype moleFractions
+wmake $maketype laminarTransport
+wmake $maketype radiationModels
+wmake $maketype chemistryModel
+
+# ----------------------------------------------------------------- end-of-file

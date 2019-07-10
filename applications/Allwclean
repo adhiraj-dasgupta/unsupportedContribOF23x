@@ -1,0 +1,8 @@
+#!/bin/sh
+cd ${0%/*} || exit 1    # run from this directory
+set -x
+
+wclean all utilities $*
+wclean all solvers $*
+
+# ----------------------------------------------------------------- end-of-file
